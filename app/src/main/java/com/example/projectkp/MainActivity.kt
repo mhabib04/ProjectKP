@@ -44,7 +44,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnKembali.setOnClickListener {
-            onBackPressed()
+            val intent = Intent(this, DaftarSuratActivity::class.java)
+            startActivity(intent)
         }
 
         // Set event untuk pemilihan tanggal
