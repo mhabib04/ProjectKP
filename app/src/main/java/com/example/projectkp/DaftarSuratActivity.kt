@@ -14,6 +14,9 @@ import com.example.projectkp.model.surat.Surat
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class DaftarSuratActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDaftarSuratBinding
@@ -83,7 +86,15 @@ class DaftarSuratActivity : AppCompatActivity() {
                     binding.swipeRefresh.isRefreshing = false
 
                     if (response.isSuccessful) {
-                        allSuratList = response.body() ?: emptyList()
+                        val suratList = response.body() ?: emptyList()
+
+                        // Pisahkan yang expired dan belum expired
+                        val suratBelumExpired = suratList.filterNot { isExpired(it.tanggal_berakhir) }
+                        val suratExpired = suratList.filter { isExpired(it.tanggal_berakhir) }
+
+                        // Gabungkan: yang belum expired di atas, expired di bawah
+                        allSuratList = suratBelumExpired + suratExpired
+
                         updatePageDisplay()
                         updateNavigationButtons()
                     } else {
@@ -98,6 +109,19 @@ class DaftarSuratActivity : AppCompatActivity() {
                 }
             })
     }
+
+    // Fungsi cek expired hanya di Activity
+    private fun isExpired(tanggalBerakhir: String): Boolean {
+        return try {
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val expiryDate = sdf.parse(tanggalBerakhir)
+            val today = Date()
+            expiryDate != null && expiryDate.before(today)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
 
     private fun updatePageDisplay() {
         val startIndex = currentPage * itemsPerPage
@@ -123,4 +147,5 @@ class DaftarSuratActivity : AppCompatActivity() {
         intent.data = Uri.parse(pdfUrl)
         startActivity(intent)
     }
+
 }
