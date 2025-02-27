@@ -36,6 +36,11 @@ android {
     buildFeatures {
         viewBinding = true
     }
+    packagingOptions {
+        resources {
+            excludes.add("META-INF/DEPENDENCIES")
+        }
+    }
 }
 
 dependencies {
@@ -53,4 +58,11 @@ dependencies {
     implementation(libs.converter.gson)
     implementation(libs.androidx.recyclerview)
     implementation(libs.androidx.swiperefreshlayout)
+
+    implementation(libs.google.api.client.android)
+    implementation(libs.google.api.services.calendar)
+    implementation(libs.google.auth.library.oauth2.http)
+    implementation(libs.play.services.auth)
+
+//    implementation(libs.play.services.auth.v2070)
 }

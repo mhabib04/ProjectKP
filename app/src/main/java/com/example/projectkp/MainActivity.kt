@@ -2,6 +2,7 @@ package com.example.projectkp
 
 import android.app.Activity
 import android.app.DatePickerDialog
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -12,8 +13,19 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
 import com.example.projectkp.api.RetrofitClient
 import com.example.projectkp.databinding.ActivityMainBinding
+import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
+import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.api.client.json.gson.GsonFactory
+import com.google.api.client.util.DateTime
+import com.google.api.services.calendar.CalendarScopes
+import com.google.api.services.calendar.model.Event
+import com.google.api.services.calendar.model.EventDateTime
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Call
@@ -241,27 +253,118 @@ class MainActivity : AppCompatActivity() {
         clearSelectedFile()
     }
 
+//    private fun addEventToCalendar(title: String, startDate: String, endDate: String) {
+//        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+//        val startMillis = formatter.parse(startDate)?.time ?: return
+//        val endMillis = formatter.parse(endDate)?.time ?: return
+//
+//        val intent = Intent(Intent.ACTION_INSERT).apply {
+//            data = android.provider.CalendarContract.Events.CONTENT_URI
+//            putExtra(android.provider.CalendarContract.Events.TITLE, title)
+//            putExtra(android.provider.CalendarContract.Events.DESCRIPTION, "Surat terkait: $title")
+//            putExtra(android.provider.CalendarContract.Events.EVENT_LOCATION, "PTPN IV")
+//            putExtra(android.provider.CalendarContract.EXTRA_EVENT_BEGIN_TIME, startMillis)
+//            putExtra(android.provider.CalendarContract.EXTRA_EVENT_END_TIME, endMillis)
+//            putExtra(android.provider.CalendarContract.Events.ALL_DAY, true)
+//        }
+//
+//        if (intent.resolveActivity(packageManager) != null) {
+//            startActivity(intent)
+//        } else {
+//            Toast.makeText(this, "Tidak ada aplikasi kalender yang tersedia!", Toast.LENGTH_SHORT).show()
+//        }
+//    }
+
+
     private fun addEventToCalendar(title: String, startDate: String, endDate: String) {
-        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val startMillis = formatter.parse(startDate)?.time ?: return
-        val endMillis = formatter.parse(endDate)?.time ?: return
+        // Menjalankan operasi Calendar di thread background
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // Parse tanggal
+                val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val startDateTime = formatter.parse(startDate)
+                val endDateTime = formatter.parse(endDate)
 
-        val intent = Intent(Intent.ACTION_INSERT).apply {
-            data = android.provider.CalendarContract.Events.CONTENT_URI
-            putExtra(android.provider.CalendarContract.Events.TITLE, title)
-            putExtra(android.provider.CalendarContract.Events.DESCRIPTION, "Surat terkait: $title")
-            putExtra(android.provider.CalendarContract.Events.EVENT_LOCATION, "PTPN IV")
-            putExtra(android.provider.CalendarContract.EXTRA_EVENT_BEGIN_TIME, startMillis)
-            putExtra(android.provider.CalendarContract.EXTRA_EVENT_END_TIME, endMillis)
-            putExtra(android.provider.CalendarContract.Events.ALL_DAY, true)
-        }
+                if (startDateTime == null || endDateTime == null) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(applicationContext, "Format tanggal tidak valid", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
 
-        if (intent.resolveActivity(packageManager) != null) {
-            startActivity(intent)
-        } else {
-            Toast.makeText(this, "Tidak ada aplikasi kalender yang tersedia!", Toast.LENGTH_SHORT).show()
+                // Siapkan kredensial
+                val credential = getCalendarCredential()
+
+                // Buat layanan calendar
+                val transport = NetHttpTransport()
+                val jsonFactory = GsonFactory.getDefaultInstance()
+
+                val calendar = com.google.api.services.calendar.Calendar.Builder(
+                    transport,
+                    jsonFactory,
+                    credential
+                )
+                    .setApplicationName("ProjectKP")
+                    .build()
+
+                // Buat event
+                val event = Event()
+                    .setSummary(title)
+                    .setDescription("Surat terkait: $title")
+                    .setLocation("PTPN IV")
+
+                val start = EventDateTime()
+                    .setDate(DateTime(startDateTime))
+                    .setTimeZone("Asia/Jakarta")
+                event.setStart(start)
+
+                val end = EventDateTime()
+                    .setDate(DateTime(endDateTime))
+                    .setTimeZone("Asia/Jakarta")
+                event.setEnd(end)
+
+                // Masukkan event - Anda bisa menentukan ID calendar di sini
+                // "primary" merujuk pada calendar utama pengguna
+                val calendarId = "primary" // atau gunakan ID calendar tertentu
+                val insertedEvent = calendar.events().insert(calendarId, event).execute()
+
+                withContext(Dispatchers.Main) {
+                    if (insertedEvent != null && insertedEvent.htmlLink != null) {
+                        Toast.makeText(
+                            applicationContext,
+                            "Event berhasil ditambahkan ke Google Calendar",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("CALENDAR_ERROR", "Error menambahkan event: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        applicationContext,
+                        "Gagal menambahkan event: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
         }
     }
 
+    // Fungsi untuk mendapatkan kredensial Google account dengan akun yang sudah ditentukan
+    private fun getCalendarCredential(): GoogleAccountCredential {
+        val credential = GoogleAccountCredential.usingOAuth2(
+            applicationContext,
+            listOf(CalendarScopes.CALENDAR)
+        )
 
+        // Pastikan nama akun tidak kosong
+        val accountName = "mhabib180404@gmail.com" // Ganti dengan email yang terdaftar di perangkat
+
+        if (accountName.isNullOrEmpty()) {
+            throw IllegalStateException("Akun Google belum dipilih")
+        }
+
+        credential.selectedAccountName = accountName
+        return credential
+    }
 }

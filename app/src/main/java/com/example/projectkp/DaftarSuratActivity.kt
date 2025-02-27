@@ -1,8 +1,10 @@
 package com.example.projectkp
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -11,6 +13,8 @@ import com.example.projectkp.api.RetrofitClient
 import com.example.projectkp.databinding.ActivityDaftarSuratBinding
 import com.example.projectkp.model.adapter.SuratAdapter
 import com.example.projectkp.model.surat.Surat
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -34,6 +38,26 @@ class DaftarSuratActivity : AppCompatActivity() {
         setupSwipeRefresh()
         loadSuratList()
 
+        val account = GoogleSignIn.getLastSignedInAccount(this)
+        if (account == null) {
+            // User belum login, arahkan ke LoginActivity
+            val intent = Intent(this, LoginActivity::class.java)
+            startActivity(intent)
+            finish()
+        } else {
+            // User sudah login, bisa akses data
+            Log.d("Google Sign-In", "User masih login: ${account.email}")
+        }
+
+//        val packageManager = packageManager
+//        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)) {
+//            // Tampilkan pesan bahwa aplikasi membutuhkan NFC
+//            Toast.makeText(this, "Aplikasi ini membutuhkan Fingerprint", Toast.LENGTH_LONG).show()
+//            finish()
+//        } else{
+//            Toast.makeText(this, "Aplikasi ini tidak membutuhkan Fingerprint", Toast.LENGTH_LONG).show()
+//        }
+
         binding.fabTambahSurat.setOnClickListener {
             val intent = Intent(this, MainActivity::class.java)
             startActivity(intent)
@@ -52,6 +76,17 @@ class DaftarSuratActivity : AppCompatActivity() {
                 updatePageDisplay()
             }
         }
+        val googleSignInClient = GoogleSignIn.getClient(this, GoogleSignInOptions.DEFAULT_SIGN_IN)
+
+        binding.btnLogout.setOnClickListener {
+            googleSignInClient.signOut().addOnCompleteListener(this) {
+                Toast.makeText(this, "Logout berhasil", Toast.LENGTH_SHORT).show()
+                val intent = Intent(this, LoginActivity::class.java)
+                startActivity(intent)
+                finish()
+            }
+        }
+
     }
 
     private fun setupSwipeRefresh() {
