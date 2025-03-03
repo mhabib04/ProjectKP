@@ -40,11 +40,11 @@ class MainActivity : AppCompatActivity() {
     private val PICK_PDF_REQUEST = 1
     private var pdfUri: Uri? = null
     private var selectedStartDate: Calendar? = null
+    private lateinit var userEmail: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Inisialisasi View Binding
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -53,6 +53,13 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+
+        // Ambil data dari intent atau SharedPreferences
+        userEmail = intent.getStringExtra("user_email") ?:
+                getSharedPreferences("UserPrefs", MODE_PRIVATE).getString("user_email", "") ?: ""
+
+        // Log untuk validasi
+        Log.d("MainActivity", "Email user: $userEmail")
 
         binding.btnKembali.setOnClickListener {
             val intent = Intent(this, DaftarSuratActivity::class.java)
@@ -276,7 +283,6 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun addEventToCalendar(title: String, startDate: String, endDate: String) {
-        // Menjalankan operasi Calendar di thread background
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 // Parse tanggal
@@ -290,6 +296,15 @@ class MainActivity : AppCompatActivity() {
                     }
                     return@launch
                 }
+
+                // Tambahkan 1 hari ke tanggal akhir karena model "all-day" event
+                val endDateTimePlusDay = Calendar.getInstance().apply {
+                    time = endDateTime
+                    add(Calendar.DAY_OF_MONTH, 1) // Penting untuk event sepanjang hari!
+                }.time
+
+                // Log untuk debugging
+                Log.d("CALENDAR_DEBUG", "Start Date: $startDateTime, End Date: $endDateTimePlusDay")
 
                 // Siapkan kredensial
                 val credential = getCalendarCredential()
@@ -312,19 +327,22 @@ class MainActivity : AppCompatActivity() {
                     .setDescription("Surat terkait: $title")
                     .setLocation("PTPN IV")
 
+                // Perbaikan: Gunakan RFC3339 timestamp untuk DateTime
                 val start = EventDateTime()
-                    .setDate(DateTime(startDateTime))
+                    .setDate(DateTime(true, startDateTime.time, 0)) // Set isDateOnly=true untuk all-day event
                     .setTimeZone("Asia/Jakarta")
                 event.setStart(start)
 
                 val end = EventDateTime()
-                    .setDate(DateTime(endDateTime))
+                    .setDate(DateTime(true, endDateTimePlusDay.time, 0)) // Gunakan tanggal+1 untuk end date
                     .setTimeZone("Asia/Jakarta")
                 event.setEnd(end)
 
-                // Masukkan event - Anda bisa menentukan ID calendar di sini
-                // "primary" merujuk pada calendar utama pengguna
-                val calendarId = "primary" // atau gunakan ID calendar tertentu
+                // Debug output
+                Log.d("CALENDAR_API", "Event yang akan ditambahkan: ${event.toPrettyString()}")
+
+                // Masukkan event
+                val calendarId = "primary"
                 val insertedEvent = calendar.events().insert(calendarId, event).execute()
 
                 withContext(Dispatchers.Main) {
@@ -334,10 +352,13 @@ class MainActivity : AppCompatActivity() {
                             "Event berhasil ditambahkan ke Google Calendar",
                             Toast.LENGTH_SHORT
                         ).show()
+                        val eventId = insertedEvent.id
+                        Log.d("CALENDAR_API", "Event ID: $eventId")
                     }
                 }
             } catch (e: Exception) {
                 Log.e("CALENDAR_ERROR", "Error menambahkan event: ${e.message}")
+                Log.e("CALENDAR_ERROR", "Stack trace: ${e.stackTraceToString()}")
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         applicationContext,
@@ -349,21 +370,30 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Fungsi untuk mendapatkan kredensial Google account dengan akun yang sudah ditentukan
     private fun getCalendarCredential(): GoogleAccountCredential {
+        // Menggunakan GoogleAccountCredential dengan client ID dari resources
         val credential = GoogleAccountCredential.usingOAuth2(
             applicationContext,
             listOf(CalendarScopes.CALENDAR)
         )
 
-        // Pastikan nama akun tidak kosong
-        val accountName = "mhabib180404@gmail.com" // Ganti dengan email yang terdaftar di perangkat
+        // Mengambil email dari SharedPreferences
+        val sharedPref = getSharedPreferences("UserPrefs", MODE_PRIVATE)
+        val userEmail = sharedPref.getString("user_email", null)
 
-        if (accountName.isNullOrEmpty()) {
-            throw IllegalStateException("Akun Google belum dipilih")
+        if (userEmail.isNullOrEmpty()) {
+            // MASALAH: Toast ini dijalankan langsung, tidak di Main thread
+            // jika dipanggil dari thread background
+            runOnUiThread {
+                Toast.makeText(this, "Silakan login terlebih dahulu", Toast.LENGTH_SHORT).show()
+                val intent = Intent(this, LoginActivity::class.java)
+                startActivity(intent)
+                finish()
+            }
+            throw IllegalStateException("Email pengguna tidak ditemukan")
         }
 
-        credential.selectedAccountName = accountName
+        credential.selectedAccountName = userEmail
         return credential
     }
 }

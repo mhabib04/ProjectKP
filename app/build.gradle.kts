@@ -64,5 +64,12 @@ dependencies {
     implementation(libs.google.auth.library.oauth2.http)
     implementation(libs.play.services.auth)
 
-//    implementation(libs.play.services.auth.v2070)
+// Google Play Services
+    implementation(libs.play.services.auth.v2050)
+
+    // Google Calendar API
+    implementation("com.google.api-client:google-api-client-android:1.33.0")
+    implementation("com.google.apis:google-api-services-calendar:v3-rev20220715-1.32.1")
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.3.0")
+    implementation("com.google.http-client:google-http-client-gson:1.41.0")
 }

@@ -3,6 +3,8 @@ package com.example.projectkp
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -11,6 +13,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
+import com.google.android.gms.common.api.Scope
 
 class LoginActivity : AppCompatActivity() {
 
@@ -20,8 +24,7 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Inisialisasi View Binding
+        enableEdgeToEdge()
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
@@ -30,8 +33,10 @@ class LoginActivity : AppCompatActivity() {
             insets
         }
 
+        // Konfigurasi Google Sign-In
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
+            .requestScopes(Scope("https://www.googleapis.com/auth/calendar"))
             .build()
 
         googleSignInClient = GoogleSignIn.getClient(this, gso)
@@ -39,11 +44,6 @@ class LoginActivity : AppCompatActivity() {
         binding.btnLogin.setOnClickListener {
             signIn()
         }
-
-        binding.btnLogin.setOnClickListener {
-            signIn()
-        }
-
     }
 
     private fun signIn() {
@@ -63,13 +63,35 @@ class LoginActivity : AppCompatActivity() {
                     val email = account.email
 
                     Log.d("Google Sign-In", "Login Berhasil\nNama: $name\nEmail: $email")
-                    val intent = Intent(this, DaftarSuratActivity::class.java)
-                    startActivity(intent)
-                    finish()
 
+                    // TAMBAHAN: Simpan data pengguna ke SharedPreferences
+                    val sharedPref = getSharedPreferences("UserPrefs", MODE_PRIVATE)
+                    val editor = sharedPref.edit()
+                    editor.putString("user_name", name)
+                    editor.putString("user_email", email)
+                    editor.apply() // Menyimpan perubahan
+
+                    // Intent ke DaftarSuratActivity saat login berhasil
+                    val intent = Intent(this, DaftarSuratActivity::class.java)
+                    // Opsional: kirim data pengguna ke activity berikutnya
+                    intent.putExtra("user_name", name)
+                    intent.putExtra("user_email", email)
+                    startActivity(intent)
+                    finish() // Tutup activity login
                 }
             } catch (e: ApiException) {
-                Log.w("Google Sign-In", "Sign-in failed", e)
+                val statusCode = e.statusCode
+                val statusMessage = CommonStatusCodes.getStatusCodeString(statusCode)
+                Log.e("Google Sign-In", "Sign-in failed with code: $statusCode ($statusMessage)")
+                Log.e("Google Sign-In", "Status: ${e.status}")
+
+                // Tampilkan pesan error ke pengguna
+                Toast.makeText(this, "Login gagal: $statusCode - $statusMessage", Toast.LENGTH_SHORT).show()
+
+                // Log tambahan untuk debugging
+                if (e.status.hasResolution()) {
+                    Log.e("Google Sign-In", "Error memiliki resolusi yang bisa dijalankan")
+                }
             }
         }
     }
