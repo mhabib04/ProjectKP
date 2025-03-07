@@ -72,4 +72,8 @@ dependencies {
     implementation("com.google.apis:google-api-services-calendar:v3-rev20220715-1.32.1")
     implementation("com.google.auth:google-auth-library-oauth2-http:1.3.0")
     implementation("com.google.http-client:google-http-client-gson:1.41.0")
+
+    implementation("com.google.android.material:material:1.10.0")
+    implementation("com.github.DImuthuUpe:AndroidPdfViewer:3.1.0-beta.1")
+
 }

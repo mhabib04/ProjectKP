@@ -48,30 +48,13 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        ViewCompat.setOnApplyWindowInsetsListener(binding.main) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
-
-        // Ambil data dari intent atau SharedPreferences
+        // Ambil data email dari intent atau SharedPreferences
         userEmail = intent.getStringExtra("user_email") ?:
                 getSharedPreferences("UserPrefs", MODE_PRIVATE).getString("user_email", "") ?: ""
 
-        // Log untuk validasi
         Log.d("MainActivity", "Email user: $userEmail")
 
-        binding.btnKembali.setOnClickListener {
-            val intent = Intent(this, DaftarSuratActivity::class.java)
-            startActivity(intent)
-        }
-
-        // Set event untuk pemilihan tanggal
-        binding.etTanggalMulai.setOnClickListener { showDatePicker(isStartDate = true) }
-        binding.etTanggalBerakhir.setOnClickListener { showDatePicker(isStartDate = false) }
-
-        // Set event untuk memilih file
-        binding.btnPilihFile.setOnClickListener { openFileChooser() }
+        setupListeners()
 
         binding.btnSimpan.setOnClickListener {
             if (binding.etJudul.text?.isEmpty() == true) {
@@ -86,6 +69,53 @@ class MainActivity : AppCompatActivity() {
                 saveData()
             }
         }
+    }
+
+    private fun setupListeners() {
+        // Tombol kembali
+        binding.btnKembali.setOnClickListener {
+            startActivity(Intent(this, DaftarSuratActivity::class.java))
+        }
+
+        // Set event untuk pemilihan tanggal
+        binding.etTanggalMulai.setOnClickListener { showDatePicker(isStartDate = true) }
+        binding.etTanggalBerakhir.setOnClickListener { showDatePicker(isStartDate = false) }
+
+        // Set event untuk memilih file
+        binding.btnPilihFile.setOnClickListener { openFileChooser() }
+
+        // Tombol simpan
+        binding.btnSimpan.setOnClickListener {
+            if (validateInputs()) {
+                saveData()
+            }
+        }
+    }
+
+    private fun validateInputs(): Boolean {
+        when {
+            binding.etJudul.text?.isEmpty() == true -> {
+                Toast.makeText(this, "Judul harus diisi!", Toast.LENGTH_SHORT).show()
+                return false
+            }
+            binding.etTujuan.text?.isEmpty() == true -> {
+                Toast.makeText(this, "Tujuan harus diisi!", Toast.LENGTH_SHORT).show()
+                return false
+            }
+            binding.etTanggalMulai.text?.isEmpty() == true -> {
+                Toast.makeText(this, "Tanggal mulai harus diisi!", Toast.LENGTH_SHORT).show()
+                return false
+            }
+            binding.etTanggalBerakhir.text?.isEmpty() == true -> {
+                Toast.makeText(this, "Tanggal berakhir harus diisi!", Toast.LENGTH_SHORT).show()
+                return false
+            }
+            pdfUri == null -> {
+                Toast.makeText(this, "Silakan pilih file PDF terlebih dahulu!", Toast.LENGTH_SHORT).show()
+                return false
+            }
+        }
+        return true
     }
 
     private fun showDatePicker(isStartDate: Boolean) {
@@ -132,6 +162,7 @@ class MainActivity : AppCompatActivity() {
         startActivityForResult(Intent.createChooser(intent, "Pilih File PDF"), PICK_PDF_REQUEST)
     }
 
+    @Deprecated("This method has been deprecated in favor of using the Activity Result API\n      which brings increased type safety via an {@link ActivityResultContract} and the prebuilt\n      contracts for common intents available in\n      {@link androidx.activity.result.contract.ActivityResultContracts}, provides hooks for\n      testing, and allow receiving results in separate, testable classes independent from your\n      activity. Use\n      {@link #registerForActivityResult(ActivityResultContract, ActivityResultCallback)}\n      with the appropriate {@link ActivityResultContract} and handling the result in the\n      {@link ActivityResultCallback#onActivityResult(Object) callback}.")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
@@ -144,14 +175,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateFileInfo(uri: Uri) {
-        val contentResolver = contentResolver
-
-        try {
-            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
                 val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                 val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
-
-                cursor.moveToFirst()
 
                 val fileName = cursor.getString(nameIndex)
                 val fileSize = cursor.getLong(sizeIndex)
@@ -172,9 +199,6 @@ class MainActivity : AppCompatActivity() {
                     clearSelectedFile()
                 }
             }
-        } catch (e: Exception) {
-            Toast.makeText(this, "Error reading file information", Toast.LENGTH_SHORT).show()
-            binding.fileInfoContainer.visibility = View.GONE
         }
     }
 
@@ -187,8 +211,8 @@ class MainActivity : AppCompatActivity() {
     private fun getFileName(uri: Uri): String {
         var name = "file.pdf"
         contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
             if (cursor.moveToFirst()) {
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                 name = cursor.getString(nameIndex)
             }
         }
@@ -206,15 +230,18 @@ class MainActivity : AppCompatActivity() {
         binding.btnSimpan.isEnabled = false
         binding.btnSimpan.text = "Mengirim..."
 
+        // Persiapkan data untuk dikirim
         val judul = RequestBody.create(MultipartBody.FORM, binding.etJudul.text.toString())
         val tujuan = RequestBody.create(MultipartBody.FORM, binding.etTujuan.text.toString())
         val tanggalMulai = RequestBody.create(MultipartBody.FORM, binding.etTanggalMulai.text.toString())
         val tanggalBerakhir = RequestBody.create(MultipartBody.FORM, binding.etTanggalBerakhir.text.toString())
 
         val inputStream = contentResolver.openInputStream(pdfUri!!)
-        val file = RequestBody.create(MultipartBody.FORM, inputStream!!.readBytes())
-        val filePart = MultipartBody.Part.createFormData("file_pdf", getFileName(pdfUri!!), file!!)
+        val fileBytes = inputStream!!.readBytes()
+        val file = RequestBody.create(MultipartBody.FORM, fileBytes)
+        val filePart = MultipartBody.Part.createFormData("file_pdf", getFileName(pdfUri!!), file)
 
+        // Kirim data ke server
         RetrofitClient.instance.insertSurat(judul, tujuan, tanggalMulai, tanggalBerakhir, filePart)
             .enqueue(object : Callback<Void> {
                 override fun onResponse(call: Call<Void>, response: Response<Void>) {
@@ -225,12 +252,16 @@ class MainActivity : AppCompatActivity() {
 
                     if (response.isSuccessful) {
                         Toast.makeText(applicationContext, "Data berhasil dikirim!", Toast.LENGTH_SHORT).show()
-                        addEventToCalendar(binding.etJudul.text.toString(),
-                            binding.etTanggalMulai.text.toString(),
-                            binding.etTanggalBerakhir.text.toString())
 
-                        // Reset form setelah berhasil
-                        resetForm()
+                        // Tambahkan ke Google Calendar
+                        addEventToCalendar(
+                            binding.etJudul.text.toString(),
+                            binding.etTanggalMulai.text.toString(),
+                            binding.etTanggalBerakhir.text.toString()
+                        )
+
+                        // Pindah ke halaman daftar surat
+                        startActivity(Intent(this@MainActivity, DaftarSuratActivity::class.java))
                     } else {
                         val errorBody = response.errorBody()?.string()
                         Toast.makeText(applicationContext, "Gagal mengirim data: $errorBody", Toast.LENGTH_LONG).show()
@@ -250,38 +281,6 @@ class MainActivity : AppCompatActivity() {
             })
     }
 
-    // Fungsi tambahan untuk reset form
-    private fun resetForm() {
-        binding.etJudul.text?.clear()
-        binding.etTujuan.text?.clear()
-        binding.etTanggalMulai.text?.clear()
-        binding.etTanggalBerakhir.text?.clear()
-        clearSelectedFile()
-    }
-
-//    private fun addEventToCalendar(title: String, startDate: String, endDate: String) {
-//        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-//        val startMillis = formatter.parse(startDate)?.time ?: return
-//        val endMillis = formatter.parse(endDate)?.time ?: return
-//
-//        val intent = Intent(Intent.ACTION_INSERT).apply {
-//            data = android.provider.CalendarContract.Events.CONTENT_URI
-//            putExtra(android.provider.CalendarContract.Events.TITLE, title)
-//            putExtra(android.provider.CalendarContract.Events.DESCRIPTION, "Surat terkait: $title")
-//            putExtra(android.provider.CalendarContract.Events.EVENT_LOCATION, "PTPN IV")
-//            putExtra(android.provider.CalendarContract.EXTRA_EVENT_BEGIN_TIME, startMillis)
-//            putExtra(android.provider.CalendarContract.EXTRA_EVENT_END_TIME, endMillis)
-//            putExtra(android.provider.CalendarContract.Events.ALL_DAY, true)
-//        }
-//
-//        if (intent.resolveActivity(packageManager) != null) {
-//            startActivity(intent)
-//        } else {
-//            Toast.makeText(this, "Tidak ada aplikasi kalender yang tersedia!", Toast.LENGTH_SHORT).show()
-//        }
-//    }
-
-
     private fun addEventToCalendar(title: String, startDate: String, endDate: String) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -297,14 +296,11 @@ class MainActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                // Tambahkan 1 hari ke tanggal akhir karena model "all-day" event
+                // Tambahkan 1 hari ke tanggal akhir untuk event sepanjang hari
                 val endDateTimePlusDay = Calendar.getInstance().apply {
                     time = endDateTime
-                    add(Calendar.DAY_OF_MONTH, 1) // Penting untuk event sepanjang hari!
+                    add(Calendar.DAY_OF_MONTH, 1)
                 }.time
-
-                // Log untuk debugging
-                Log.d("CALENDAR_DEBUG", "Start Date: $startDateTime, End Date: $endDateTimePlusDay")
 
                 // Siapkan kredensial
                 val credential = getCalendarCredential()
@@ -327,21 +323,19 @@ class MainActivity : AppCompatActivity() {
                     .setDescription("Surat terkait: $title")
                     .setLocation("PTPN IV")
 
-                // Perbaikan: Gunakan RFC3339 timestamp untuk DateTime
+                // Set tanggal mulai
                 val start = EventDateTime()
-                    .setDate(DateTime(true, startDateTime.time, 0)) // Set isDateOnly=true untuk all-day event
+                    .setDate(DateTime(true, startDateTime.time, 0))
                     .setTimeZone("Asia/Jakarta")
                 event.setStart(start)
 
+                // Set tanggal selesai
                 val end = EventDateTime()
-                    .setDate(DateTime(true, endDateTimePlusDay.time, 0)) // Gunakan tanggal+1 untuk end date
+                    .setDate(DateTime(true, endDateTimePlusDay.time, 0))
                     .setTimeZone("Asia/Jakarta")
                 event.setEnd(end)
 
-                // Debug output
-                Log.d("CALENDAR_API", "Event yang akan ditambahkan: ${event.toPrettyString()}")
-
-                // Masukkan event
+                // Masukkan event ke Google Calendar
                 val calendarId = "primary"
                 val insertedEvent = calendar.events().insert(calendarId, event).execute()
 
@@ -352,13 +346,10 @@ class MainActivity : AppCompatActivity() {
                             "Event berhasil ditambahkan ke Google Calendar",
                             Toast.LENGTH_SHORT
                         ).show()
-                        val eventId = insertedEvent.id
-                        Log.d("CALENDAR_API", "Event ID: $eventId")
                     }
                 }
             } catch (e: Exception) {
                 Log.e("CALENDAR_ERROR", "Error menambahkan event: ${e.message}")
-                Log.e("CALENDAR_ERROR", "Stack trace: ${e.stackTraceToString()}")
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         applicationContext,
@@ -371,7 +362,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getCalendarCredential(): GoogleAccountCredential {
-        // Menggunakan GoogleAccountCredential dengan client ID dari resources
+        // Menggunakan GoogleAccountCredential dengan scope CalendarScopes.CALENDAR
         val credential = GoogleAccountCredential.usingOAuth2(
             applicationContext,
             listOf(CalendarScopes.CALENDAR)
@@ -382,8 +373,6 @@ class MainActivity : AppCompatActivity() {
         val userEmail = sharedPref.getString("user_email", null)
 
         if (userEmail.isNullOrEmpty()) {
-            // MASALAH: Toast ini dijalankan langsung, tidak di Main thread
-            // jika dipanggil dari thread background
             runOnUiThread {
                 Toast.makeText(this, "Silakan login terlebih dahulu", Toast.LENGTH_SHORT).show()
                 val intent = Intent(this, LoginActivity::class.java)

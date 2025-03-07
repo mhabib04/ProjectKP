@@ -1,15 +1,14 @@
 package com.example.projectkp.model.adapter
 
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.example.projectkp.R
 import com.example.projectkp.databinding.ItemSuratBinding
 import com.example.projectkp.model.surat.Surat
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 class SuratAdapter(private val suratList: List<Surat>, private val onPdfClick: (String) -> Unit) :
     RecyclerView.Adapter<SuratAdapter.SuratViewHolder>() {
@@ -19,7 +18,10 @@ class SuratAdapter(private val suratList: List<Surat>, private val onPdfClick: (
             binding.apply {
                 tvJudul.text = surat.judul
                 tvTujuan.text = surat.tujuan
-                tvTanggal.text = "Periode: ${surat.tanggal_mulai} s/d ${surat.tanggal_berakhir}"
+                // Format tanggal ke format Tanggal Bulan Tahun
+                val tanggalMulaiFormatted = formatDate(surat.tanggal_mulai)
+                val tanggalBerakhirFormatted = formatDate(surat.tanggal_berakhir)
+                tvTanggal.text = "Periode: ${tanggalMulaiFormatted} s/d ${tanggalBerakhirFormatted}"
 
                 // Atur warna background jika expired
                 val isExpired = isExpired(surat.tanggal_berakhir)
@@ -28,7 +30,7 @@ class SuratAdapter(private val suratList: List<Surat>, private val onPdfClick: (
                 )
 
                 btnViewPdf.setOnClickListener {
-                    onPdfClick(surat.file_pdf)
+                    onPdfClick(surat.id.toString())
                 }
             }
         }
@@ -42,6 +44,21 @@ class SuratAdapter(private val suratList: List<Surat>, private val onPdfClick: (
                 expiryDate != null && expiryDate.before(today)
             } catch (e: Exception) {
                 false
+            }
+        }
+
+        private fun formatDate(dateString: String): String {
+            try {
+                // Assuming input date is in format like "yyyy-MM-dd" or similar
+                // Adjust the input format according to your actual date format
+                val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale("id"))
+                val outputFormat = SimpleDateFormat("dd MMMM yyyy", Locale("id"))
+
+                val date = inputFormat.parse(dateString)
+                return outputFormat.format(date)
+            } catch (e: Exception) {
+                // Return original string if parsing fails
+                return dateString
             }
         }
     }

@@ -1,5 +1,5 @@
 <resources>
     <string name="app_name">ProjectKP</string>
-<!--    <string name="client_id">735543884897-qnm3huluakg4eivdlntd8pcmageevlqu.apps.googleusercontent.com</string>-->
+    <!--    <string name="client_id">735543884897-qnm3huluakg4eivdlntd8pcmageevlqu.apps.googleusercontent.com</string>-->
     <string name="oauth_scope">https://www.googleapis.com/auth/calendar</string>
 </resources>
