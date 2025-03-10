@@ -5,6 +5,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#E5EAFB"
     tools:context=".LoginActivity">
 
     <ImageView
@@ -23,6 +24,10 @@
         android:layout_height="wrap_content"
         android:layout_margin="20dp"
         android:text="SIGN IN WITH GOOGLE"
+        android:textSize="15dp"
+        android:textStyle="bold"
+        android:textColor="@color/white"
+        app:backgroundTint="#4889f4"
         app:cornerRadius="10dp"
         app:icon="@drawable/ic_google"
         app:iconGravity="start"
