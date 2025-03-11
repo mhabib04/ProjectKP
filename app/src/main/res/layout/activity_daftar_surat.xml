@@ -74,6 +74,13 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_arrow_right"
             android:contentDescription="Tanggal berikutnya" />
+
+        <Button
+            android:id="@+id/btnHariIni"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Reset \nTanggal"
+            android:layout_marginStart="10dp" />
     </LinearLayout>
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout

@@ -133,7 +133,7 @@ class PdfViewerActivity : AppCompatActivity(), OnLoadCompleteListener, OnErrorLi
     override fun loadComplete(nbPages: Int) {
         totalPages = nbPages
         binding.progressBar.visibility = View.GONE
-        Toast.makeText(this, "PDF berhasil dimuat", Toast.LENGTH_SHORT).show()
+//        Toast.makeText(this, "PDF berhasil dimuat", Toast.LENGTH_SHORT).show()
         Log.d("PdfViewer", "PDF loaded successfully. Total pages: $nbPages")
     }
 

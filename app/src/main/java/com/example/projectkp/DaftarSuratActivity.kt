@@ -1,5 +1,6 @@
 package com.example.projectkp
 
+import android.app.DatePickerDialog
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -82,6 +83,14 @@ class DaftarSuratActivity : AppCompatActivity() {
             updateDateDisplay()
             filterSuratBySelectedDate()
         }
+
+        // Di dalam fungsi setupDateSelector()
+        binding.btnHariIni.setOnClickListener {
+            // Set calendar ke tanggal hari ini
+            calendar.time = Date()
+            updateDateDisplay()
+            filterSuratBySelectedDate()
+        }
     }
 
     private fun updateDateDisplay() {
@@ -107,6 +116,11 @@ class DaftarSuratActivity : AppCompatActivity() {
                 currentPage--
                 updatePageDisplay()
             }
+        }
+
+        // Setup click listener untuk tvCurrentDate
+        binding.tvCurrentDate.setOnClickListener {
+            showDatePickerDialog()
         }
 
         val googleSignInClient = GoogleSignIn.getClient(this, GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -258,7 +272,7 @@ class DaftarSuratActivity : AppCompatActivity() {
     private fun openPdfViewer(suratIdStr: String) {
         try {
             val suratId = suratIdStr.toInt()
-            val baseUrl = "https://ae58-36-69-0-31.ngrok-free.app"
+            val baseUrl = "https://3501-36-69-3-21.ngrok-free.app"
             val pdfUrl = "$baseUrl/surats/$suratId/pdf"
 
             Log.d("PDF_VIEWER", "PDF URL: $pdfUrl")
@@ -270,5 +284,35 @@ class DaftarSuratActivity : AppCompatActivity() {
             Toast.makeText(this, "Gagal membuka PDF: ${e.message}", Toast.LENGTH_SHORT).show()
             Log.e("PDF_VIEWER", "Error opening PDF: ${e.message}", e)
         }
+    }
+
+    private fun showDatePickerDialog() {
+        // Pastikan konteks Locale Indonesia
+        val localeID = Locale("id", "ID")
+        Locale.setDefault(localeID)
+
+        // Buat DatePickerDialog dengan tanggal yang saat ini dipilih
+        val datePickerDialog = DatePickerDialog(
+            this,
+            { _, year, month, dayOfMonth ->
+                // Update calendar dengan tanggal yang dipilih
+                calendar.set(Calendar.YEAR, year)
+                calendar.set(Calendar.MONTH, month)
+                calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+
+                // Update tampilan dan filter data
+                updateDateDisplay()
+                filterSuratBySelectedDate()
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        )
+
+        // Set judul dialog
+        datePickerDialog.setTitle("Pilih Tanggal")
+
+        // Tampilkan dialog
+        datePickerDialog.show()
     }
 }
